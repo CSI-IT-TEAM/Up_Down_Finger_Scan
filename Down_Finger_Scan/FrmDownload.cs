@@ -166,19 +166,22 @@ namespace ATTN
                         if (dtLocal.Select("L_ID = '" + row["EMP_NO"] + "'").Count() == 0)
                         {
                             //Insert table tUser
-                            strSql = string.Format("INSERT INTO TUSER( L_ID,             C_Name,        C_Unique,              " +
+                            strSql = string.Format($"INSERT INTO TUSER( L_ID,             C_Name,        C_Unique,              " +
                                                                      " L_Type,           C_RegDate,     L_OptDateLimit,  " +
                                                                      " C_DateLimit,      L_AccessType,  C_Password,    " +
                                                                      " L_Identify,       L_VerifyLevel, C_AccessGroup, " +
-                                                                     " C_PassbackStatus, L_IsNotice,    Valid_YN) " +
+                                                                     " C_PassbackStatus, L_IsNotice,    Valid_YN" +
+                                                                     " L_AuthValue, L_RegServer) " +
                                                              " VALUES( '{0}', '{1}', '{2}', " +
                                                                      "  0 ,   '{6}',  0, " +
                                                                      " '{7}',  0,    '', " +
                                                                      "  1,     0,    '{5}', " +
-                                                                     " '****', 0,    'Y' )",
+                                                                     " '****', 0,    'Y' " +
+                                                                     "{8}, {9})",
                                                 row["EMP_NO"], row["ENG_NAME"], row["EMPID"],
                                                 row["DEP_CODE"], row["RF_ID"], row["DEPT_GROUP"],
-                                                row["REG_DATE"], row["DATE_LIMIT"]);
+                                                row["REG_DATE"], row["DATE_LIMIT"], row["AUTHVALUE"],
+                                                row["REGSERVER"]);
                             ExecAccess(strSql, con, "  Insert tUser-->" + row["EMP_NO"]);
 
 
@@ -189,9 +192,12 @@ namespace ATTN
                                                      "   SET VALID_YN = 'Y'   " +
                                                      "     , C_AccessGroup = '{5}'" +
                                                      "     , C_Unique = '{2}'" +
+                                                     "     , L_AuthValue = {6}" +
+                                                     "     , L_RegServer = {7}" +
                                                      " WHERE L_ID = {0}",
                                                      row["EMP_NO"], row["ENG_NAME"], row["EMPID"],
-                                                     row["DEP_CODE"], row["RF_ID"], row["DEPT_GROUP"]);
+                                                     row["DEP_CODE"], row["RF_ID"], row["DEPT_GROUP"],
+                                                     row["AUTHVALUE"], row["REGSERVER"]);
                             ExecAccess(strSql, con, "  Update tUser-->" + row["EMP_NO"]);
                         }
 
@@ -391,7 +397,8 @@ namespace ATTN
                 string strIP = System.Net.Dns.GetHostEntry(strUser).AddressList.GetValue(1).ToString();
                 string strSql = "";
                 string[] arrVar;
-                DataTable dtSql1 = new DataTable();
+                DataTable dtSql1 = new DataTable()
+                    ;
                 DataTable dtSql2 = new DataTable();
                 DataTable dtDept = new DataTable();
                 DataTable dtSever = new DataTable();
@@ -479,6 +486,8 @@ namespace ATTN
                         WriteLog("  " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "-->Begin insert emp");
                         foreach (DataRow row in dtSever.Rows)
                         {
+                            if (row["EMP_NO"].ToString() == "19120069")
+                            { }
                             _db.execSql(row["SQL_CODE"].ToString(), conSql, row["SQL_CODE"].ToString());
                         }
                         WriteLog("  " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "-->End insert emp");
@@ -527,7 +536,7 @@ namespace ATTN
             catch (Exception ex)
             {
                 WriteLog(argErr);
-                Lib.ClassLib.writeToLog(argErr + ": " + ex.ToString());
+                Lib.ClassLib.writeToLog(argErr + "("+ strSql + ")" + ": " + ex.ToString());
             }
         }
 

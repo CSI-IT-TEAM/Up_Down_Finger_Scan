@@ -108,7 +108,7 @@ namespace ATTN
                      *****************/
                     DataTable dt = new DataTable();
 
-                    string strSql = "  SELECT A.C_Date,  A.C_Time,  A.L_TID,  A.L_UID, A.L_Mode,  A.C_Unique, B.L_RegServer  " +
+                    string strSql = "  SELECT A.C_Date,  A.C_Time,  A.L_TID,  A.L_UID, A.L_Mode,  A.C_Unique, B.L_RegServer, A.L_MatchingType  " +
                                     "    FROM TENTER A, TUSER B " +
                                     "   WHERE A.APPLY_YN = 'N' " +
                                     "     AND A.L_UID = B.L_ID ";
@@ -148,7 +148,7 @@ namespace ATTN
                                 command.Parameters.Add("ARG_EMPID", OracleType.VarChar).Value = row["C_UNIQUE"].ToString();
                                 command.Parameters.Add("ARG_IO_DIV", OracleType.VarChar).Value = row["L_Mode"].ToString();
                                 command.Parameters.Add("ARG_IO_TIME", OracleType.VarChar).Value = row["C_DATE"].ToString() + row["C_TIME"].ToString();
-                                command.Parameters.Add("ARG_FIX_TF", OracleType.VarChar).Value = "N";
+                                command.Parameters.Add("ARG_FIX_TF", OracleType.VarChar).Value = row["L_MatchingType"].ToString();
                                 command.Parameters.Add("ARG_CHECK_FIL", OracleType.VarChar).Value = "ACCESS";
                                 command.Parameters.Add("ARG_IP", OracleType.VarChar).Value = strIP;
                                 command.Parameters.Add("ARG_USER", OracleType.VarChar).Value = strUser;
@@ -234,10 +234,11 @@ namespace ATTN
                      *****************/
                     DataTable dt = new DataTable();
 
-                    string strSql = "   SELECT A.E_Date,  A.E_Time,  A.g_ID,  A.E_id, A.e_Mode,  A.E_idno  " +
+                    string strSql = "   SELECT A.E_Date,  A.E_Time,  A.g_ID,  A.E_id, A.e_Mode,  A.E_idno, A.E_Type  " +
                                      "    FROM TENTER A, TUSER B " +
                                      "   WHERE A.APPLY_YN = 'N' " +
-                                     "     AND A.E_id = B.id ";
+                                     "     AND A.E_id = B.id " +
+                                     "     AND A.e_result ='0' ";
 
                     using (OleDbDataAdapter da = new OleDbDataAdapter(strSql, con))
                     {
@@ -276,7 +277,7 @@ namespace ATTN
                                 command.Parameters.Add("ARG_EMPID", OracleType.VarChar).Value = row["E_idno"].ToString();
                                 command.Parameters.Add("ARG_IO_DIV", OracleType.VarChar).Value = row["e_Mode"].ToString();
                                 command.Parameters.Add("ARG_IO_TIME", OracleType.VarChar).Value = row["E_Date"].ToString() + row["E_Time"].ToString();
-                                command.Parameters.Add("ARG_FIX_TF", OracleType.VarChar).Value = "";
+                                command.Parameters.Add("ARG_FIX_TF", OracleType.VarChar).Value = row["E_Type"].ToString(); 
                                 command.Parameters.Add("ARG_CHECK_FIL", OracleType.VarChar).Value = "ACCESS";
                                 command.Parameters.Add("ARG_IP", OracleType.VarChar).Value = strIP;
                                 command.Parameters.Add("ARG_USER", OracleType.VarChar).Value = strUser;
