@@ -128,10 +128,10 @@ namespace ATTN
         {
             try
             {
-                using (SqlCommand cmd = new SqlCommand(strSql, con))
-                {
-                    return cmd.ExecuteNonQuery();                 
-                }
+                    using (SqlCommand cmd = new SqlCommand(strSql, con))
+                    {
+                        return cmd.ExecuteNonQuery();                 
+                    }
             }
             catch (Exception ex)
             {

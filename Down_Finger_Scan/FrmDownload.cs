@@ -170,14 +170,14 @@ namespace ATTN
                                                                      " L_Type,           C_RegDate,     L_OptDateLimit,  " +
                                                                      " C_DateLimit,      L_AccessType,  C_Password,    " +
                                                                      " L_Identify,       L_VerifyLevel, C_AccessGroup, " +
-                                                                     " C_PassbackStatus, L_IsNotice,    Valid_YN" +
+                                                                     " C_PassbackStatus, L_IsNotice,    Valid_YN," +
                                                                      " L_AuthValue, L_RegServer) " +
                                                              " VALUES( '{0}', '{1}', '{2}', " +
                                                                      "  0 ,   '{6}',  0, " +
                                                                      " '{7}',  0,    '', " +
                                                                      "  1,     0,    '{5}', " +
-                                                                     " '****', 0,    'Y' " +
-                                                                     "{8}, {9})",
+                                                                     " '****', 0,    'Y', " +
+                                                                     " {8}, {9})",
                                                 row["EMP_NO"], row["ENG_NAME"], row["EMPID"],
                                                 row["DEP_CODE"], row["RF_ID"], row["DEPT_GROUP"],
                                                 row["REG_DATE"], row["DATE_LIMIT"], row["AUTHVALUE"],
