@@ -111,7 +111,8 @@ namespace ATTN
                     string strSql = "  SELECT A.C_Date,  A.C_Time,  A.L_TID,  A.L_UID, A.L_Mode,  A.C_Unique, B.L_RegServer, A.L_MatchingType  " +
                                     "    FROM TENTER A, TUSER B " +
                                     "   WHERE A.APPLY_YN = 'N' " +
-                                    "     AND A.L_UID = B.L_ID ";
+                                    "     AND A.L_UID = B.L_ID " +
+                                    "     AND A.L_Result = 0 ";
 
                     using (OleDbDataAdapter da = new OleDbDataAdapter(strSql, con))
                     {

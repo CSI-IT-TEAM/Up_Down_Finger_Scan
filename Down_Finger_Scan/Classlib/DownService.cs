@@ -11,7 +11,7 @@ namespace ATTN
     {
         public string _strLocalDB = "";
         public string _strSeverDB = "";
-       // public Dictionary<string, string> _dtnTypeDb = new Dictionary<string, string>();
+
         [Obsolete]
         public bool checkConnectOracle(String arg_conOra)
         {

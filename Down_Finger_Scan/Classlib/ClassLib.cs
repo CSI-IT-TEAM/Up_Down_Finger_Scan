@@ -4,13 +4,19 @@ using System.Linq;
 using System.Text;
 using System.Data;
 using System.IO;
-
+using System.Net.Sockets;
+using System.Net;
 
 namespace Lib
 {
     class ClassLib
     {
-       // public static string _strConnection;
+
+        public static Action<string, bool> WriteLog;
+
+        public static Action<string> WriteStatus;
+
+        // public static string _strConnection;
         public static void writeToLog(string str)
         {
             try
@@ -64,8 +70,25 @@ namespace Lib
         }
 
 
-        
+        public static string GetLocalIPAddress() {
+            var host = Dns.GetHostEntry(Dns.GetHostName());
+            foreach (var ip in host.AddressList) {
+                if (ip.AddressFamily == AddressFamily.InterNetwork) {
+                    return ip.ToString();
+                }
+            }
+            throw new Exception("No network adapters with an IPv4 address in the system!");
+        }
 
+
+        public static string[] DataRowToArray(DataRow dr) {
+            int totalColumn = dr.ItemArray.Length;
+            string[] strArray = new string[totalColumn];
+            for (int i = 0; i < totalColumn; i++) {
+                strArray[i] = dr[totalColumn].ToString();
+            }
+            return strArray;
+        }
 
 
     }
