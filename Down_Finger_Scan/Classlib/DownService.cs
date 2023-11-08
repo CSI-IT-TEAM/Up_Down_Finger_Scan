@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Data.OleDb;
-using System.Data.OracleClient;
+using Oracle.ManagedDataAccess.Client;
 using System.Data.SqlClient;
 using System.Collections.Generic;
 
@@ -140,7 +140,7 @@ namespace ATTN
             }
         }
 
-        [Obsolete]
+      
         public int execOra(string strSql, OracleConnection con, string argErr)
         {
             try

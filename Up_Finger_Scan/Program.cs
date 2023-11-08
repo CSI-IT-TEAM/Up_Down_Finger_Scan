@@ -15,7 +15,7 @@ namespace ATTN
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-           Application.Run(new FrmUpload());
+           Application.Run(new UploadData());
          //  Application.Run(new FrmDownload());
         }
     }

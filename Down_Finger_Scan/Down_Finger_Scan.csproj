@@ -104,15 +104,6 @@
     <Compile Include="DownloadData.Designer.cs">
       <DependentUpon>DownloadData.cs</DependentUpon>
     </Compile>
-    <Compile Include="Db_SQL.cs" />
-    <Compile Include="Db_Access.cs" />
-    <Compile Include="FrmDownload.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="FrmDownload.Designer.cs">
-      <DependentUpon>FrmDownload.cs</DependentUpon>
-    </Compile>
-    <Compile Include="GetDataDb.cs" />
     <Compile Include="Model\EmpLocalInfor.cs" />
     <Compile Include="Model\SqlText.cs" />
     <Compile Include="Program.cs" />
@@ -120,9 +111,6 @@
     <Compile Include="Classlib\DownService.cs" />
     <EmbeddedResource Include="DownloadData.resx">
       <DependentUpon>DownloadData.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="FrmDownload.resx">
-      <DependentUpon>FrmDownload.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

@@ -1,7 +1,5 @@
-﻿namespace ATTN
-{
-    partial class DownloadData
-    {
+﻿namespace ATTN {
+    partial class UploadData {
         /// <summary>
         /// Required designer variable.
         /// </summary>
@@ -11,10 +9,8 @@
         /// Clean up any resources being used.
         /// </summary>
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing && (components != null))
-            {
+        protected override void Dispose(bool disposing) {
+            if (disposing && (components != null)) {
                 components.Dispose();
             }
             base.Dispose(disposing);
@@ -26,9 +22,9 @@
         /// Required method for Designer support - do not modify
         /// the contents of this method with the code editor.
         /// </summary>
-        private void InitializeComponent()
-        {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(DownloadData));
+        private void InitializeComponent() {
+            this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FrmUpload));
             this.cboLocal = new System.Windows.Forms.ComboBox();
             this.cboSever = new System.Windows.Forms.ComboBox();
             this.label1 = new System.Windows.Forms.Label();
@@ -37,6 +33,7 @@
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             this.txtLog = new System.Windows.Forms.TextBox();
             this.lblStatus = new System.Windows.Forms.Label();
+            this.tmrLoad = new System.Windows.Forms.Timer(this.components);
             this.cmdStart = new System.Windows.Forms.Button();
             this.tableLayoutPanel1.SuspendLayout();
             this.SuspendLayout();
@@ -87,9 +84,9 @@
             // cmdCheckDb
             // 
             this.cmdCheckDb.Font = new System.Drawing.Font("Calibri", 12F);
-            this.cmdCheckDb.Location = new System.Drawing.Point(272, 1);
+            this.cmdCheckDb.Location = new System.Drawing.Point(196, 2);
             this.cmdCheckDb.Name = "cmdCheckDb";
-            this.cmdCheckDb.Size = new System.Drawing.Size(79, 33);
+            this.cmdCheckDb.Size = new System.Drawing.Size(80, 33);
             this.cmdCheckDb.TabIndex = 5;
             this.cmdCheckDb.Text = "Check DB";
             this.cmdCheckDb.UseVisualStyleBackColor = true;
@@ -126,22 +123,28 @@
             this.lblStatus.Font = new System.Drawing.Font("Calibri", 12F);
             this.lblStatus.Location = new System.Drawing.Point(201, 41);
             this.lblStatus.Name = "lblStatus";
-            this.lblStatus.Size = new System.Drawing.Size(78, 19);
+            this.lblStatus.Size = new System.Drawing.Size(59, 19);
             this.lblStatus.TabIndex = 8;
-            this.lblStatus.Text = "Download:";
+            this.lblStatus.Text = "Upload:";
+            // 
+            // tmrLoad
+            // 
+            this.tmrLoad.Interval = 60000;
+            this.tmrLoad.Tick += new System.EventHandler(this.TmrLoad_Tick);
             // 
             // cmdStart
             // 
             this.cmdStart.Font = new System.Drawing.Font("Calibri", 12F);
-            this.cmdStart.Location = new System.Drawing.Point(193, 1);
+            this.cmdStart.Location = new System.Drawing.Point(295, 1);
             this.cmdStart.Name = "cmdStart";
-            this.cmdStart.Size = new System.Drawing.Size(79, 33);
-            this.cmdStart.TabIndex = 9;
+            this.cmdStart.Size = new System.Drawing.Size(53, 33);
+            this.cmdStart.TabIndex = 10;
             this.cmdStart.Text = "Start";
             this.cmdStart.UseVisualStyleBackColor = true;
+            this.cmdStart.Visible = false;
             this.cmdStart.Click += new System.EventHandler(this.CmdStart_Click);
             // 
-            // FrmDownload
+            // FrmUpload
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -157,8 +160,8 @@
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
-            this.Name = "FrmDownload";
-            this.Text = "Download";
+            this.Name = "FrmUpload";
+            this.Text = "Upload";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.FrmUpload_FormClosing);
             this.Load += new System.EventHandler(this.FrmUpload_Load);
             this.tableLayoutPanel1.ResumeLayout(false);
@@ -177,6 +180,7 @@
         private System.Windows.Forms.Button cmdCheckDb;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
         private System.Windows.Forms.Label lblStatus;
+        private System.Windows.Forms.Timer tmrLoad;
         private System.Windows.Forms.TextBox txtLog;
         private System.Windows.Forms.Button cmdStart;
     }

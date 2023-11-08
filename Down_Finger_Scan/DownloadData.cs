@@ -2,12 +2,10 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.OleDb;
-using System.Data.OracleClient;
+using Oracle.ManagedDataAccess.Client;
 using System.Data.SqlClient;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 //using Oracle.DataAccess.Client;
@@ -17,142 +15,328 @@ namespace ATTN {
     public partial class DownloadData : Form {
         public DownloadData() {
             InitializeComponent();
-            Lib.ClassLib.WriteLog += WriteLog;
-            Lib.ClassLib.WriteStatus += WriteStatus;
-            InitTimerAuto();
+            Control.CheckForIllegalCrossThreadCalls = false;
         }
-        System.Windows.Forms.Timer tmrAuto = new System.Windows.Forms.Timer();
+
         DownService _db = new DownService();
-        public static string TypeData = "VJ";
-        public static string User = System.Net.Dns.GetHostName();
-        public static string Ip = Lib.ClassLib.GetLocalIPAddress();
-
-        private async void AutoDownload() {
-            DataSet ds = Lib.ClassLib.ReadXML(Application.StartupPath + "\\configATTN.XML");
-            string processKill = ds.Tables["config"].Rows[0]["ProcessKill"].ToString();
-            KillProcess(processKill);
-
-            DataTable dt = (DataTable)cboLocal.DataSource;
-            string strSever = cboSever.SelectedValue.ToString().Trim().Replace("\n", "").Replace("\t", "");
-            foreach (DataRow row in dt.Rows) {
-                
-                string strLocal = row["CONNECT"].ToString();
-                string nameDb = row["NAME"].ToString();
-                string typeDb = row["TYPEBD"].ToString();
-                await Task.Run(() => DownLoad(strSever, strLocal, nameDb, typeDb));
-                //if (typeDb == "SQL") {
-                //    Db_SQL sqlDb = new Db_SQL();
-                //    await Task.Run(() => sqlDb.Download(nameDb, strLocal, strSever));
-                //} else {
-                //    Db_Access unisAccess = new Db_Access();
-                //    await Task.Run(() => unisAccess.Download(nameDb, strLocal, strSever));
-                //}
-                
-            }
-        }
-
-        private void DownLoad(string strSever, string strLocal, string nameDb, string typeDb) {
-            //string strSever = cboSever.SelectedValue.ToString().Trim().Replace("\n", "").Replace("\t", "");
-            //string strLocal = row["CONNECT"].ToString();
-            //string nameDb = row["NAME"].ToString();
-            //string typeDb = row["TYPEBD"].ToString();
-            if (typeDb == "SQL") {
-                Db_SQL sqlDb = new Db_SQL();
-                sqlDb.Download(nameDb, strLocal, strSever);
-            } else {
-                Db_Access unisAccess = new Db_Access();
-                unisAccess.Download(nameDb, strLocal, strSever);
-            }
-        }
+        private Dictionary<string, string> _dtnTypeDb = new Dictionary<string, string>();
+        Thread _thrd;
+        string _strData = "VJ";
+        const string HUBIC = "user id = HUBICVJ; password = HUBICVJ; data source = (DESCRIPTION = (ADDRESS_LIST = (ADDRESS = (PROTOCOL = TCP)(HOST = 211.54.128.21)(PORT = 1521)))(CONNECT_DATA = (SID = HUBICVJ)(SERVER = DEDICATED))); pooling = false;";
+        #region Event
 
         private void FrmUpload_Load(object sender, EventArgs e) {
             DataSet ds = Lib.ClassLib.ReadXML(Application.StartupPath + "\\configATTN.XML");
             SetCbo(cboLocal, ds.Tables["DB_LOCAL"]);
             SetCbo(cboSever, ds.Tables["DB_SERVER"]);
-            TypeData = ds.Tables["config"].Rows[0]["DATA"].ToString();
-            
-        }
+            _strData = ds.Tables["config"].Rows[0]["DATA"].ToString();
 
-        private async void ManualDownload() {
-            DataTable dt = (DataTable)cboLocal.DataSource;
-            int selectedIndex = cboLocal.SelectedIndex;
-            string strSever = cboSever.SelectedValue.ToString().Trim().Replace("\n", "").Replace("\t", "");
-            string strLocal = dt.Rows[selectedIndex]["CONNECT"].ToString();
-            string nameDb = dt.Rows[selectedIndex]["NAME"].ToString();
-            string typeDb = dt.Rows[selectedIndex]["TYPEBD"].ToString();
-            await Task.Run(() => DownLoad(strSever, strLocal, nameDb, typeDb));
         }
 
         private void CmdStart_Click(object sender, EventArgs e) {
-            ManualDownload();
+            cmdStart.Enabled = false;
+            RunDownload();
         }
 
-        private void KillProcess(string argProcessName) {
-            foreach (Process process in Process.GetProcessesByName(argProcessName)) {
-                process.Kill();
-                WriteLog($"Kill Process: {argProcessName}");
-            }
-        }
-
-        private void WriteLog(string argText, bool isErr = false) {
-            txtLog.BeginInvoke(new Action(() => {
-                txtLog.Text += argText + "\r\n";
-                txtLog.SelectionStart = txtLog.TextLength;
-                txtLog.ScrollToCaret();
-                txtLog.Refresh();
-            }));
-        }
-
-        private void WriteStatus(string argText) {
-            lblStatus.BeginInvoke(new Action(() => {
-                lblStatus.Text = argText;
-            }));
-        }
-
+        [Obsolete]
         private void CmdCheckDb_Click(object sender, EventArgs e) {
-            Classlib.Connection connect = new Classlib.Connection();
-            bool bLocal = connect.CanConnectAccess(cboLocal.SelectedValue.ToString());
-            string severConnectStr = cboSever.SelectedValue.ToString().Trim().Replace("\n", "").Replace("\t", "");
-            bool bSever = connect.CanConnectOracle(severConnectStr);
+            bool bLocal = CheckDB(cboLocal);
+            bool bSever = CheckDB(cboSever);
             if (bLocal && bSever)
                 WriteLog("Connect Success");
+            else
+                WriteLog("Local: " + bLocal.ToString() + ";  Sever: " + bSever.ToString());
         }
 
-        private void SetCbo(ComboBox argCbo, DataTable dt) {
-            argCbo.DataSource = dt;
-            argCbo.DisplayMember = "NAME";
-            argCbo.ValueMember = "CONNECT";
-            argCbo.SelectedIndex = 0;
+        private void FrmUpload_FormClosing(object sender, FormClosingEventArgs e) {
+            Application.Exit();
         }
+        #endregion
 
-        private void chkAuto_CheckedChanged(object sender, EventArgs e) {
-            dtpRunTime.Enabled = !chkAuto.Checked;
-        }
+        #region UNIS
+        [Obsolete]
+        private void DownloadUNIS() {
+            try {
+                WriteLog(DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "--->Start Download");
+
+                string strSever = cboSever.SelectedValue.ToString();
+                string strLocal = cboLocal.SelectedValue.ToString();
+                string strUser = System.Net.Dns.GetHostName();
+                string strIP = System.Net.Dns.GetHostEntry(strUser).AddressList.GetValue(1).ToString();
 
 
 
-        #region Timer
-        private void InitTimerAuto() {
-            tmrAuto.Interval = 1000;
-            tmrAuto.Tick += TmrAuto_Tick;
-            tmrAuto.Start();
-        }
+                using (SqlConnection con = new SqlConnection(strLocal)) {
+                    con.Open();
+                    DataTable dtLocal = new DataTable();
+                    string strSql = "";
 
-        bool isRunning = false;
-        private void TmrAuto_Tick(object sender, EventArgs e) {
-            if (!chkAuto.Checked) return;
-            if (DateTime.Now.Hour != dtpRunTime.Value.Hour ||
-                DateTime.Now.Minute != dtpRunTime.Value.Minute) {
-                isRunning = false;
-                return;
+                    /*****************
+                     * Local
+                     *
+                     *****************/
+                    using (SqlCommand cmd = new SqlCommand()) {
+                        cmd.Connection = con;
+                        WriteLog("Connect");
+                        //Update status tUser
+                        cmd.CommandText = "  UPDATE TUSER SET VALID_YN = 'N'";
+                        WriteLog("  UPDATE tUser SET VALID_YN = 'N': " + cmd.ExecuteNonQuery().ToString());
+                        //Delete data table cPost
+                        cmd.CommandText = "DELETE FROM CPOST";
+                        WriteLog("  DELETE cPost: " + cmd.ExecuteNonQuery().ToString());
+                        //Delete data table tEmployee
+                        cmd.CommandText = "DELETE FROM TEMPLOYE";
+                        WriteLog("  DELETE tEmployee: " + cmd.ExecuteNonQuery().ToString());
+                        //Delete data table iUserCard
+                        cmd.CommandText = "DELETE FROM iUserCard";
+                        WriteLog("  DELETE iUserCard: " + cmd.ExecuteNonQuery().ToString());
+                    }
+                    /*****************
+                     * Sever
+                     *
+                     *****************/
+                    DataTable dtSever = new DataTable();
+                    DataTable dtDept = new DataTable();
+                    WriteLog("  " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "-->Begin get data");
+                    using (OracleConnection connection = new OracleConnection(HUBIC)) {
+                        connection.Open();
+                        using (OracleCommand command = new OracleCommand("PW_TL_SCAN_MC_DOWNLOAD_S", connection)) {
+                            command.CommandType = CommandType.StoredProcedure;
+                            command.Parameters.Add("ARG_DATA", OracleDbType.Varchar2).Value = _strData;
+                            command.Parameters.Add("ARG_NAME_DB", OracleDbType.Varchar2).Value = cboLocal.Text;
+                            command.Parameters.Add("ARG_IP", OracleDbType.Varchar2).Value = strIP;
+                            command.Parameters.Add("ARG_USER", OracleDbType.Varchar2).Value = strUser;
+                            command.Parameters.Add("OUT_CURSOR", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+                            command.Parameters.Add("OUT_CURSOR2", OracleDbType.RefCursor).Direction = ParameterDirection.Output;
+
+                            DataSet ds = new DataSet();
+                            (new OracleDataAdapter(command)).Fill(ds);
+                            dtSever = ds.Tables[0];
+                            dtDept = ds.Tables[1];
+                        }
+                    }
+
+                    if (dtSever == null || dtSever.Rows.Count == 0) {
+                        WriteLog("No Data!");
+                        return;
+                    }
+                    WriteLog("  " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "-->End get data");
+
+                    WriteLog("  Insert cPOST--> " + dtDept.Rows.Count);
+                    foreach (DataRow row in dtDept.Rows) {
+                        strSql = string.Format("INSERT INTO cPOST(C_CODE, C_Name) " +
+                                                 "        VALUES ('{0}', '{1}') ",
+                                                        row["DEP_CODE"], row["DEP_NAME"]);
+                        _db.execSql(strSql, con, "  Insert cPOST-->" + row["DEP_CODE"] + "|" + row["DEP_NAME"]);
+                    }
+
+                    int iRowUpload = 0, iRow = dtSever.Rows.Count;
+
+
+                    WriteLog("  " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "--->Begin tUser: " + iRow.ToString());
+
+                    //Get empid in table tUser
+                    using (SqlDataAdapter da = new SqlDataAdapter("SELECT L_ID, C_Unique FROM TUSER ", con)) {
+                        da.Fill(dtLocal);
+                    }
+
+                    foreach (DataRow row in dtSever.Rows) {
+                        if (dtLocal.Select("L_ID = '" + row["EMP_NO"] + "'").Count() == 0) {
+
+                            //Insert table tUser
+                            strSql = string.Format("INSERT INTO TUSER( L_ID,             C_Name,        C_Unique,              " +
+                                                                     " L_Type,           C_RegDate,     L_OptDateLimit,  " +
+                                                                     " C_DateLimit,      L_AccessType,  C_Password,    " +
+                                                                     " L_Identify,       L_VerifyLevel, C_AccessGroup, " +
+                                                                     " C_PassbackStatus, L_IsNotice,    Valid_YN," +
+                                                                     " L_AuthValue, L_RegServer, L_FaceIndentity) " +
+                                                             " VALUES( '{0}', '{1}', '{2}', " +
+                                                                     "  0 ,   '{6}',  0, " +
+                                                                     " '{7}',  0,    '', " +
+                                                                     "  1,     0,    '{5}', " +
+                                                                     " '****', 0,    'Y', " +
+                                                                     " {8}, {9}, 0)",
+                                                row["EMP_NO"], row["ENG_NAME"], row["EMPID"],
+                                                row["DEP_CODE"], row["RF_ID"], row["DEPT_GROUP"],
+                                                row["REG_DATE"], row["DATE_LIMIT"], row["AUTHVALUE"],
+                                                row["REGSERVER"]);
+                            _db.execSql(strSql, con, "  Insert tUser-->" + row["EMP_NO"]);
+
+
+                        } else {
+                            strSql = string.Format("UPDATE TUSER " +
+                                                     "   SET VALID_YN = 'Y'   " +
+                                                     "     , C_AccessGroup = '{5}'" +
+                                                     "     , C_Unique = '{2}'" +
+                                                     "     , L_AuthValue = {6}" +
+                                                     "     , L_RegServer = {7}" +
+                                                     " WHERE L_ID = {0}",
+                                                     row["EMP_NO"], row["ENG_NAME"], row["EMPID"],
+                                                     row["DEP_CODE"], row["RF_ID"], row["DEPT_GROUP"],
+                                                     row["AUTHVALUE"], row["REGSERVER"]);
+                            _db.execSql(strSql, con, "  Update tUser-->" + row["EMP_NO"]);
+                        }
+
+                        //Insert table tEmployee
+                        strSql = string.Format("INSERT INTO TEMPLOYE(L_UID, C_POST) " +
+                                                             "VALUES ( {0}, '{3}' )",
+                                                row["EMP_NO"], row["ENG_NAME"], row["EMPID"],
+                                                row["DEP_CODE"], row["RF_ID"], row["DEPT_GROUP"]);
+                        _db.execSql(strSql, con, "  Insert tEmployee-->" + row["EMP_NO"]);
+
+                        //Insert table iUserCard
+                        if (row["RF_ID"].ToString().Trim() != "") {
+                            strSql = string.Format(" INSERT INTO iUserCard(C_CardNum, L_UID) " +
+                                                        " VALUES ( '{4}', {0} ) ",
+                                                    row["EMP_NO"], row["ENG_NAME"], row["EMPID"],
+                                                    row["DEP_CODE"], row["RF_ID"], row["DEPT_GROUP"]);
+                            _db.execSql(strSql, con, "  Insert iUserCard-->" + row["EMP_NO"]);
+                        }
+
+                        lblStatus.Text = "Upload: " + (++iRowUpload).ToString() + "/" + iRow.ToString();
+                    }
+
+
+
+                    lblStatus.Text = "";
+                    WriteLog("  " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "--->End tUser");
+                }
+
+            } catch (Exception ex) {
+                WriteLog("  Error !!!");
+                Lib.ClassLib.writeToLog("uploadUNIS : " + ex.ToString());
+            } finally {
+                cmdStart.Enabled = true;
+                WriteLog(DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "--->Finish Download ");
             }
-            if (isRunning) return;
-            isRunning = true;
-            AutoDownload();
-
         }
+        #endregion
 
-        #endregion Timer
+        #region  Access
+        [Obsolete]
+        private void DownloadACCESS() {
+            try {
+                WriteLog(DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "--->Start Download");
+
+                string strSever = cboSever.SelectedValue.ToString();
+                string strLocal = cboLocal.SelectedValue.ToString();
+                string strUser = System.Net.Dns.GetHostName();
+                string strIP = System.Net.Dns.GetHostEntry(strUser).AddressList.GetValue(1).ToString();
+
+
+
+                using (OleDbConnection con = new OleDbConnection(strLocal)) {
+                    con.Open();
+                    DataTable dtLocal = new DataTable();
+                    string strSql = "";
+
+                    /*****************
+                     * Local
+                     *
+                     *****************/
+                    //Update status tUser
+                    using (OleDbCommand cmd = new OleDbCommand("  UPDATE TUSER SET VALID_YN = 'N'", con)) {
+                        WriteLog("  UPDATE tUser SET VALID_YN = 'N': " + cmd.ExecuteNonQuery().ToString());
+                    }
+                    /*****************
+                     * Sever
+                     *
+                     *****************/
+                    DataTable dtSever = new DataTable();
+                    DataTable dtDept = new DataTable();
+                    WriteLog("  " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "-->Begin get data");
+                    using (OracleConnection connection = new OracleConnection(strSever)) {
+                        connection.Open();
+                        using (OracleCommand command = new OracleCommand("PW_TL_SCAN_MC_DOWNLOAD_S", connection)) {
+                            command.CommandType = CommandType.StoredProcedure;
+                            command.Parameters.Add("ARG_DATA", OracleDbType.Varchar2).Value = _strData;
+                            command.Parameters.Add("ARG_NAME_DB", OracleDbType.Varchar2).Value = cboLocal.Text;
+                            command.Parameters.Add("ARG_IP", OracleDbType.Varchar2).Value = strIP;
+                            command.Parameters.Add("ARG_USER", OracleDbType.Varchar2).Value = strUser;
+                            command.Parameters.Add("OUT_RefCursor", OracleDbType.RefCursor);
+                            command.Parameters.Add("OUT_RefCursor2", OracleDbType.RefCursor);
+
+                            command.Parameters["ARG_DATA"].Direction = ParameterDirection.Input;
+                            command.Parameters["ARG_NAME_DB"].Direction = ParameterDirection.Input;
+                            command.Parameters["ARG_IP"].Direction = ParameterDirection.Input;
+                            command.Parameters["ARG_USER"].Direction = ParameterDirection.Input;
+                            command.Parameters["OUT_RefCursor"].Direction = ParameterDirection.Output;
+                            command.Parameters["OUT_RefCursor2"].Direction = ParameterDirection.Output;
+
+                            DataSet ds = new DataSet();
+                            (new OracleDataAdapter(command)).Fill(ds);
+                            dtSever = ds.Tables[0];
+                            dtDept = ds.Tables[1];
+                        }
+                    }
+
+                    if (dtSever == null || dtSever.Rows.Count == 0) {
+                        WriteLog("No Data!");
+                        return;
+                    }
+                    WriteLog("  " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "-->End get data");
+
+                    int iRowUpload = 0, iRow = dtSever.Rows.Count;
+
+                    WriteLog("  " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "--->Begin tUser: " + iRow.ToString());
+
+                    //Get empid in table tUser
+                    using (OleDbDataAdapter da = new OleDbDataAdapter("SELECT ID, idno FROM TUSER ", con)) {
+                        da.Fill(dtLocal);
+                    }
+
+                    foreach (DataRow row in dtSever.Rows) {
+                        if (dtLocal.Select("ID = '" + row["EMP_NO"] + "'").Count() == 0) {
+                            //Insert table tUser
+                            strSql = string.Format("INSERT INTO TUSER( ID,             Name,        CARDNUM,              " +
+                                                                     " DEPT,           group_id,     REG_DATE,  " +
+                                                                     " DATELIMIT,      VALIDTYPE,  PADMIN,    " +
+                                                                     " VALID_YN,       idno) " +
+                                                             " VALUES( '{0}', '{1}', '{2}', " +
+                                                                     " '{3}', '{4}', '{6}', " +
+                                                                     " '{7}',  '3',  7, " +
+                                                                     "  'Y',  '{5}')",
+                                                row["EMP_NO"], row["ENG_NAME"], row["RF_ID"],
+                                                row["DEP_NAME"], row["DEP_DIV"], row["EMPID"],
+                                                row["REG_DATE"], row["DATE_LIMIT"]);
+                            ExecAccess(strSql, con, "  Insert tUser-->" + row["EMP_NO"]);
+
+
+                        } else {
+                            strSql = string.Format("UPDATE TUSER " +
+                                                     "   SET VALID_YN = 'Y'   " +
+                                                     "     , NAME = '{1}'" +
+                                                     "     , CARDNUM = '{2}'" +
+                                                     "     , DEPT = '{3}'" +
+                                                     "     , REG_DATE = '{6}'" +
+                                                     "     , DATELIMIT = '{7}'" +
+                                                     "     , VALIDTYPE = '4'" +
+                                                     "     , PADMIN = 7" +
+                                                     "     , group_id = '{4}'" +
+                                                     "     , idno = '{5}'" +
+                                                     " WHERE ID = {0}",
+                                                     row["EMP_NO"], row["ENG_NAME"], row["RF_ID"],
+                                                     row["DEP_NAME"], row["DEP_DIV"], row["EMPID"],
+                                                     row["REG_DATE"], row["DATE_LIMIT"]);
+                            ExecAccess(strSql, con, "  Update tUser-->" + row["EMP_NO"]);
+                        }
+
+                        lblStatus.Text = "Upload: " + (++iRowUpload).ToString() + "/" + iRow.ToString();
+                    }
+
+                    lblStatus.Text = "";
+                    WriteLog("  " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "--->End tUser");
+                }
+
+            } catch (Exception ex) {
+                WriteLog("  Error !!!");
+                Lib.ClassLib.writeToLog("uploadUNIS : " + ex.ToString());
+            } finally {
+                cmdStart.Enabled = true;
+                WriteLog(DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "--->Finish Download ");
+            }
+        }
+        #endregion
 
         #region SQL
         [Obsolete]
@@ -180,19 +364,19 @@ namespace ATTN {
                         conOra.Open();
                         using (OracleCommand command = new OracleCommand("PW_TL_SCAN_MC_DOWN_SQL_S", conOra)) {
                             command.CommandType = CommandType.StoredProcedure;
-                            command.Parameters.Add("ARG_DATA", OracleType.VarChar).Value = TypeData;
-                            command.Parameters.Add("ARG_NAME_DB", OracleType.VarChar).Value = cboLocal.Text;
-                            command.Parameters.Add("ARG_IP", OracleType.VarChar).Value = strIP;
-                            command.Parameters.Add("ARG_USER", OracleType.VarChar).Value = strUser;
-                            command.Parameters.Add("OUT_CURSOR", OracleType.Cursor);
-                            command.Parameters.Add("OUT_CURSOR2", OracleType.Cursor);
+                            command.Parameters.Add("ARG_DATA", OracleDbType.Varchar2).Value = _strData;
+                            command.Parameters.Add("ARG_NAME_DB", OracleDbType.Varchar2).Value = cboLocal.Text;
+                            command.Parameters.Add("ARG_IP", OracleDbType.Varchar2).Value = strIP;
+                            command.Parameters.Add("ARG_USER", OracleDbType.Varchar2).Value = strUser;
+                            command.Parameters.Add("OUT_RefCursor", OracleDbType.RefCursor);
+                            command.Parameters.Add("OUT_RefCursor2", OracleDbType.RefCursor);
 
                             command.Parameters["ARG_DATA"].Direction = ParameterDirection.Input;
                             command.Parameters["ARG_NAME_DB"].Direction = ParameterDirection.Input;
                             command.Parameters["ARG_IP"].Direction = ParameterDirection.Input;
                             command.Parameters["ARG_USER"].Direction = ParameterDirection.Input;
-                            command.Parameters["OUT_CURSOR"].Direction = ParameterDirection.Output;
-                            command.Parameters["OUT_CURSOR2"].Direction = ParameterDirection.Output;
+                            command.Parameters["OUT_RefCursor"].Direction = ParameterDirection.Output;
+                            command.Parameters["OUT_RefCursor2"].Direction = ParameterDirection.Output;
 
                             DataSet ds = new DataSet();
                             (new OracleDataAdapter(command)).Fill(ds);
@@ -224,19 +408,19 @@ namespace ATTN {
                         WriteLog("  " + DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss") + "-->Begin get data Ora");
                         using (OracleCommand command = new OracleCommand("PW_TL_SCAN_MC_DOWNLOAD_S", conOra)) {
                             command.CommandType = CommandType.StoredProcedure;
-                            command.Parameters.Add("ARG_DATA", OracleType.VarChar).Value = TypeData;
-                            command.Parameters.Add("ARG_NAME_DB", OracleType.VarChar).Value = cboLocal.Text;
-                            command.Parameters.Add("ARG_IP", OracleType.VarChar).Value = strIP;
-                            command.Parameters.Add("ARG_USER", OracleType.VarChar).Value = strUser;
-                            command.Parameters.Add("OUT_CURSOR", OracleType.Cursor);
-                            command.Parameters.Add("OUT_CURSOR2", OracleType.Cursor);
+                            command.Parameters.Add("ARG_DATA", OracleDbType.Varchar2).Value = _strData;
+                            command.Parameters.Add("ARG_NAME_DB", OracleDbType.Varchar2).Value = cboLocal.Text;
+                            command.Parameters.Add("ARG_IP", OracleDbType.Varchar2).Value = strIP;
+                            command.Parameters.Add("ARG_USER", OracleDbType.Varchar2).Value = strUser;
+                            command.Parameters.Add("OUT_RefCursor", OracleDbType.RefCursor);
+                            command.Parameters.Add("OUT_RefCursor2", OracleDbType.RefCursor);
 
                             command.Parameters["ARG_DATA"].Direction = ParameterDirection.Input;
                             command.Parameters["ARG_NAME_DB"].Direction = ParameterDirection.Input;
                             command.Parameters["ARG_IP"].Direction = ParameterDirection.Input;
                             command.Parameters["ARG_USER"].Direction = ParameterDirection.Input;
-                            command.Parameters["OUT_CURSOR"].Direction = ParameterDirection.Output;
-                            command.Parameters["OUT_CURSOR2"].Direction = ParameterDirection.Output;
+                            command.Parameters["OUT_RefCursor"].Direction = ParameterDirection.Output;
+                            command.Parameters["OUT_RefCursor2"].Direction = ParameterDirection.Output;
 
                             DataSet ds = new DataSet();
                             (new OracleDataAdapter(command)).Fill(ds);
@@ -274,11 +458,78 @@ namespace ATTN {
         #endregion
 
 
-        
+
+        #region Proc
+
+        private void ExecAccess(string strSql, OleDbConnection con, string argErr) {
+            try {
+                using (OleDbCommand cmd = new OleDbCommand(strSql, con)) {
+                    if (cmd.ExecuteNonQuery().ToString() == "0") {
+                        WriteLog(argErr + ": Fail");
+                    }
+                }
+            } catch (Exception ex) {
+                WriteLog(argErr);
+                Lib.ClassLib.writeToLog(argErr + "(" + strSql + ")" + ": " + ex.ToString());
+            }
+        }
+
+        private void RunDownload() {
+            ThreadStart ts;
+
+            if (cboLocal.Text == "SQL") { ts = new ThreadStart(DownloadSQL); } else if (cboLocal.Text == "ACCESS") { ts = new ThreadStart(DownloadACCESS); } else
+                ts = new ThreadStart(DownloadUNIS);
+
+            _thrd = new Thread(ts);
+            _thrd.Start();
+        }
+
+        private void WriteLog(string argText) {
+
+            txtLog.BeginInvoke(new Action(() => {
+                txtLog.Text += argText + "\r\n";
+                txtLog.SelectionStart = txtLog.TextLength;
+                txtLog.ScrollToCaret();
+                txtLog.Refresh();
+            }));
+        }
+
+        //private void writeError(string argText)
+        //{
+
+        //    txtLog.BeginInvoke(new Action(() =>
+        //    {
+        //        txtErr.Text += argText + "\r\n";
+        //        txtErr.SelectionStart = txtLog.TextLength;
+        //        txtErr.ScrollToCaret();
+        //        txtErr.Refresh();
+        //    }));
+        //}
+
+        private void SetCbo(ComboBox argCbo, DataTable dt) {
+            for (int i = 0; i < dt.Rows.Count; i++) {
+                _dtnTypeDb.Add(dt.Rows[i][0].ToString(), dt.Rows[i][1].ToString());
+            }
+            argCbo.DataSource = dt;
+            argCbo.DisplayMember = "NAME";
+            argCbo.ValueMember = "CONNECT";
+            argCbo.SelectedIndex = 0;
+            // checkDB(argCbo);
+        }
+
+        [Obsolete]
+        private bool CheckDB(ComboBox argCbo) {
+            if (_dtnTypeDb[argCbo.Text] == "ACCESS" || _dtnTypeDb[argCbo.Text] == "UNIS") {
+                return _db.checkConnectAccess(argCbo.SelectedValue.ToString());
+            } else if (_dtnTypeDb[argCbo.Text] == "SQL") {
+                return _db.checkConnectSql(argCbo.SelectedValue.ToString());
+            } else {
+                return _db.checkConnectOracle(argCbo.SelectedValue.ToString());
+            }
+        }
+
+        #endregion
 
 
-
-
-        
     }
 }
