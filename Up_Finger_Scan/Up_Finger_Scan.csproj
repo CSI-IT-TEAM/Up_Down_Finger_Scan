@@ -89,6 +89,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ClassLib.cs" />
+    <Compile Include="UploadDataDoor.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UploadDataDoor.Designer.cs">
+      <DependentUpon>UploadDataDoor.cs</DependentUpon>
+    </Compile>
     <Compile Include="UploadData.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -104,6 +110,9 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UpService.cs" />
+    <EmbeddedResource Include="UploadDataDoor.resx">
+      <DependentUpon>UploadDataDoor.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="UploadData.resx">
       <DependentUpon>UploadData.cs</DependentUpon>
     </EmbeddedResource>
